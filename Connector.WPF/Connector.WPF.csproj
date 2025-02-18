@@ -13,5 +13,9 @@
         <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
         <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
     </ItemGroup>
+    
+    <ItemGroup>
+      <ProjectReference Include="..\Connector\Connector.csproj" />
+    </ItemGroup>
 
 </Project>

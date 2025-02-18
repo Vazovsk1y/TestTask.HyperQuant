@@ -1,8 +1,6 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+﻿namespace Connector.WPF.ViewModels;
 
-namespace Connector.WPF.ViewModels;
-
-public class MainWindowViewModel : ObservableObject
+public class MainWindowViewModel(RestPageViewModel restPageViewModel)
 {
-    
+    public RestPageViewModel RestPageViewModel { get; } = restPageViewModel;
 }
