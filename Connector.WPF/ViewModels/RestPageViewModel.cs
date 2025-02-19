@@ -4,11 +4,33 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Connector.Contracts;
 using Microsoft.Extensions.DependencyInjection;
+using OxyPlot;
+using OxyPlot.Axes;
+using OxyPlot.Series;
 
 namespace Connector.WPF.ViewModels;
 
 public partial class RestPageViewModel : ObservableObject
 {
+    public static readonly IEnumerable<KeyValuePair<string, int>> AvailableTimeFrames = new List<KeyValuePair<string, int>>
+    {
+        new("1m", 60),
+        new("5m", 300),
+        new("15m", 900),
+        new("30m", 1800),
+        new("1h", 3600),
+        new("3h", 10800),
+        new("6h", 21600),
+        new("12h", 43200),
+        new("1D", 86400),
+        new("1W", 604800),
+        new("14D", 1209600),
+        new("1M", 2592000)
+    };
+
+    [ObservableProperty] 
+    private PlotModel? _candlesChart;
+    
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(GetTradesCommand))]
     private uint _tradesLimit = 125;
@@ -19,15 +41,27 @@ public partial class RestPageViewModel : ObservableObject
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(GetTradesCommand))]
     private string? _tradesPair;
+    
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(GetCandleSeriesCommand))]
+    private string? _candlesPair;
+    
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(GetCandleSeriesCommand))]
+    private uint _candlesLimit = 125;
 
+    [ObservableProperty]
+    private KeyValuePair<string, int> _candlesTimeFrame = AvailableTimeFrames.First();
+    
+    [ObservableProperty]
+    private DateTime _candlesFrom = DateTime.Now.AddDays(-7);
+
+    [ObservableProperty] 
+    private DateTime _candlesTo = DateTime.Now;
+    
     [RelayCommand(CanExecute = nameof(CanGetTrades))]
     private async Task GetTradesAsync()
     {
-        if (GetTradesCommand.IsRunning)
-        {
-            return;
-        }
-
         using var scope = App.Services.CreateScope();
         var connector = scope.ServiceProvider.GetRequiredService<ITestConnector>();
 
@@ -53,6 +87,65 @@ public partial class RestPageViewModel : ObservableObject
 
     private bool CanGetTrades() => !string.IsNullOrWhiteSpace(TradesPair) && 
                                    TradesLimit >= 1;
+
+    [RelayCommand(CanExecute = nameof(CanGetCandleSeries))]
+    private async Task GetCandleSeriesAsync()
+    {
+        using var scope = App.Services.CreateScope();
+        var connector = scope.ServiceProvider.GetRequiredService<ITestConnector>();
+        
+        try
+        {
+            var from = CandlesFrom.ToUniversalTime();
+            var to = CandlesFrom.ToUniversalTime();
+
+            var result = await connector.GetCandleSeriesAsync(CandlesPair!, CandlesTimeFrame.Value, from, to, CandlesLimit);
+
+            var candleStickSeries = new CandleStickSeries()
+            {
+                Color = OxyColors.Black,
+                IncreasingColor = OxyColors.Green,
+                DecreasingColor = OxyColors.Red,
+                Title = result.FirstOrDefault()?.Pair,
+                TrackerFormatString = "{0}\nDateTime: {2:dd.MM.yyyy HH:mm}\nHigh: {3:0.###}\nLow: {4:0.###}\nOpen: {5:0.###}\nClose: {6:0.###}",
+            };
+
+            candleStickSeries.Items.AddRange(
+                result
+                    .OrderBy(e => e.OpenTime)
+                    .Select(candle => new HighLowItem(
+                        DateTimeAxis.ToDouble(candle.OpenTime.ToLocalTime().DateTime),
+                        (double)candle.HighPrice,
+                        (double)candle.LowPrice,
+                        (double)candle.OpenPrice,
+                        (double)candle.ClosePrice
+                    )));
+            
+            var dateTimeAxis = new DateTimeAxis
+            {
+                Position = AxisPosition.Bottom,
+                StringFormat = "dd.MM.yyyy HH:mm",
+                MajorGridlineStyle = LineStyle.Solid,
+                MinorGridlineStyle = LineStyle.Dot,
+                IntervalType = DateTimeIntervalType.Auto,
+                Title = "Time",
+            };
+
+            CandlesChart = new PlotModel
+            {
+                Title = "Candles Chart",
+                Series = { candleStickSeries },
+                Axes = { dateTimeAxis }
+            };
+        }
+        catch (HttpRequestException e)
+        {
+            MessageBox.Show(e.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+    
+    private bool CanGetCandleSeries() => !string.IsNullOrWhiteSpace(CandlesPair) &&
+                                         CandlesLimit >= 1;
 }
 
 public record TradeViewModel(
