@@ -3,31 +3,14 @@ using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Connector.Contracts;
-using Microsoft.Extensions.DependencyInjection;
 using OxyPlot;
 using OxyPlot.Axes;
 using OxyPlot.Series;
 
 namespace Connector.WPF.ViewModels;
 
-public partial class RestPageViewModel : ObservableObject
+public partial class RestPageViewModel(ITestConnector connector) : ObservableObject
 {
-    public static readonly IEnumerable<KeyValuePair<string, int>> AvailableTimeFrames = new List<KeyValuePair<string, int>>
-    {
-        new("1m", 60),
-        new("5m", 300),
-        new("15m", 900),
-        new("30m", 1800),
-        new("1h", 3600),
-        new("3h", 10800),
-        new("6h", 21600),
-        new("12h", 43200),
-        new("1D", 86400),
-        new("1W", 604800),
-        new("14D", 1209600),
-        new("1M", 2592000)
-    };
-
     [ObservableProperty] 
     private PlotModel? _candlesChart;
     
@@ -59,12 +42,25 @@ public partial class RestPageViewModel : ObservableObject
     [ObservableProperty] 
     private DateTime _candlesTo = DateTime.Now;
     
+    public static readonly IEnumerable<KeyValuePair<string, int>> AvailableTimeFrames = new List<KeyValuePair<string, int>>
+    {
+        new("1m", 60),
+        new("5m", 300),
+        new("15m", 900),
+        new("30m", 1800),
+        new("1h", 3600),
+        new("3h", 10800),
+        new("6h", 21600),
+        new("12h", 43200),
+        new("1D", 86400),
+        new("1W", 604800),
+        new("14D", 1209600),
+        new("1M", 2592000)
+    };
+    
     [RelayCommand(CanExecute = nameof(CanGetTrades))]
     private async Task GetTradesAsync()
     {
-        using var scope = App.Services.CreateScope();
-        var connector = scope.ServiceProvider.GetRequiredService<ITestConnector>();
-
         try
         {
             var result = await connector.GetNewTradesAsync(TradesPair!, (int)TradesLimit);
@@ -75,7 +71,7 @@ public partial class RestPageViewModel : ObservableObject
                     e.Amount, 
                     e.Price, 
                     e.Side, 
-                    e.Time.ToLocalTime().ToString("dd.MM.yyyy HH:mm"), 
+                    e.Time.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss"), 
                     e.Id))
                 .ToList();
         }
@@ -91,9 +87,6 @@ public partial class RestPageViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanGetCandleSeries))]
     private async Task GetCandleSeriesAsync()
     {
-        using var scope = App.Services.CreateScope();
-        var connector = scope.ServiceProvider.GetRequiredService<ITestConnector>();
-        
         try
         {
             var from = CandlesFrom.ToUniversalTime();

@@ -2,6 +2,9 @@
 
 public class Trade
 {
+    internal const string BuySide = "buy";
+    internal const string SellSide = "sell";
+    
     /// <summary>
     /// Валютная пара
     /// </summary>

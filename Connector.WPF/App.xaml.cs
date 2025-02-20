@@ -16,6 +16,7 @@ public partial class App : Application
         collection.AddSingleton<MainWindow>();
         collection.AddSingleton<MainWindowViewModel>();
         collection.AddSingleton<RestPageViewModel>();
+        collection.AddSingleton<WebsocketPageViewModel>();
         
         collection.AddConnector();
         

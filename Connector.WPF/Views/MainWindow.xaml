@@ -15,40 +15,34 @@
         d:DataContext="{d:DesignInstance vm:MainWindowViewModel}">
     <Grid>
         <TabControl Margin="10">
+            <TabControl.Resources>
+                <Style TargetType="TextBox">
+                    <Setter Property="FontSize" Value="16" />
+                    <Setter Property="MinWidth" Value="100" />
+                    <Setter Property="Margin" Value="10, 0, 10, 0" />
+                </Style>
+
+                <Style TargetType="xctk:DateTimePicker">
+                    <Setter Property="Margin" Value="10, 0, 10, 0" />
+                </Style>
+
+                <Style TargetType="DataGrid">
+                    <Setter Property="CanUserAddRows" Value="False" />
+                    <Setter Property="CanUserDeleteRows" Value="False" />
+                    <Setter Property="SelectionMode" Value="Single" />
+                    <Setter Property="Margin" Value="0, 5, 0, 0" />
+                </Style>
+
+                <Style TargetType="DataGridCell">
+                    <Setter Property="MinWidth" Value="100" />
+                </Style>
+            </TabControl.Resources>
             <TabItem Header="REST"
                      Content="{Binding RestPageViewModel}">
                 <TabItem.ContentTemplate>
                     <DataTemplate DataType="{x:Type vm:RestPageViewModel}">
                         <TabControl Margin="10"
                                     FontSize="16">
-                            <TabControl.Resources>
-                                <Style TargetType="TextBox">
-                                    <Setter Property="FontSize" Value="16"/>
-                                    <Setter Property="MinWidth" Value="100"/>
-                                    <Setter Property="Margin" Value="0, 0, 10, 0"/>
-                                </Style>
-                                
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="FontSize" Value="16"/>
-                                    <Setter Property="Margin" Value="0, 0, 5, 0"/>
-                                </Style>
-                                
-                                <Style TargetType="xctk:DateTimePicker">
-                                    <Setter Property="Margin" Value="0, 0, 10, 0"/>
-                                </Style>
-                                
-                                <Style TargetType="DataGrid">
-                                    <Setter Property="CanUserAddRows" Value="False"/>
-                                    <Setter Property="CanUserDeleteRows" Value="False"/>
-                                    <Setter Property="SelectionMode" Value="Single"/>
-                                    <Setter Property="Margin" Value="0, 5, 0, 0"/>
-                                </Style>
-                                
-                                <Style TargetType="DataGridCell">
-                                    <Setter Property="MinWidth" Value="100"/>
-                                </Style>
-                            </TabControl.Resources>
-                            
                             <TabItem Header="Trades">
                                 <Grid>
                                     <Grid.RowDefinitions>
@@ -87,7 +81,7 @@
                                         <TextBlock Text="Time Frame:"/>
                                         <ComboBox SelectedItem="{Binding CandlesTimeFrame}"
                                                   ItemsSource="{x:Static vm:RestPageViewModel.AvailableTimeFrames}"
-                                                  Margin="0, 0, 10, 0">
+                                                  Margin="10, 0, 10, 0">
                                             <ComboBox.ItemTemplate>
                                                 <DataTemplate>
                                                     <TextBlock Text="{Binding Key}"/>
@@ -106,6 +100,44 @@
                                                   Model="{Binding CandlesChart}"/>
                                     
                                 </Grid>
+                            </TabItem>
+                        </TabControl>
+                    </DataTemplate>
+                </TabItem.ContentTemplate>
+            </TabItem>
+            <TabItem Header="Websocket"
+                     Content="{Binding WebsocketPageViewModel}">
+                <TabItem.ContentTemplate>
+                    <DataTemplate DataType="{x:Type vm:WebsocketPageViewModel}">
+                        <TabControl Margin="10"
+                                    FontSize="16">
+                            <TabItem Header="Trades">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    
+                                    <StackPanel Orientation="Horizontal"
+                                                Margin="0, 5, 0, 0">
+                                        <TextBlock Text="Pair:"/>
+                                        <TextBox Text="{Binding TradesPair, UpdateSourceTrigger=PropertyChanged}"/>
+                                        <TextBlock Text="Limit:"/>
+                                        <TextBox Text="{Binding TradesLimit, UpdateSourceTrigger=PropertyChanged}"/>
+                                        <Button Content="Subscribe trades"
+                                                Command="{Binding SubscribeTradesCommand}"
+                                                Margin="0, 0, 10, 0"/>
+                                        <Button Content="Unsubscribe trades"
+                                                Command="{Binding UnsubscribeTradesCommand}"/>
+                                    </StackPanel>
+                                    
+                                    <DataGrid Grid.Row="1"
+                                              ItemsSource="{Binding Trades}"/>
+                                </Grid>
+                            </TabItem>
+                            
+                            <TabItem Header="Candles">
+                                
                             </TabItem>
                         </TabControl>
                     </DataTemplate>

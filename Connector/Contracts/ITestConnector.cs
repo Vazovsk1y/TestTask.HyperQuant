@@ -13,7 +13,10 @@ public interface ITestConnector
 
     event Action<Trade> NewBuyTrade;
     event Action<Trade> NewSellTrade;
-    void SubscribeTrades(string pair, int maxCount = 100);
+    
+    // Moved from void -> Task to provide async API.
+    Task SubscribeTrades(string pair, int maxCount = 100);
+    
     void UnsubscribeTrades(string pair);
 
     event Action<Candle> CandleSeriesProcessing;
