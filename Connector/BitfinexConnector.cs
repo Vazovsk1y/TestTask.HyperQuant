@@ -102,6 +102,17 @@ internal class BitfinexConnector : ITestConnector
         var content = await response.Content.ReadFromJsonAsync<IEnumerable<JsonElement>>();
         return content!.Select(e => MapToCandle(e, pair)).ToList();
     }
+
+    public async Task<Ticker> GetTickerAsync(string pair)
+    {
+        using var client = _httpClientFactory.CreateClient(HttpClientName);
+        using var response = await client.GetAsync($"ticker/{pair}");
+        
+        response.EnsureSuccessStatusCode();
+        
+        var content = await response.Content.ReadFromJsonAsync<double?[]>();
+        return Ticker.FromArray(content!);
+    }
     
     // TODO: How to use 'maxCount'?
     public async Task SubscribeTrades(string pair, int maxCount = 100)

@@ -101,6 +101,55 @@
                                     
                                 </Grid>
                             </TabItem>
+
+                            <TabItem Header="Ticker">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Pair:" />
+                                        <TextBox Text="{Binding TickerPair, UpdateSourceTrigger=PropertyChanged}" />
+                                        <Button Content="Get ticker"
+                                                Command="{Binding GetTickerCommand}" />
+                                    </StackPanel>
+
+                                    <ContentControl Content="{Binding TickerViewModel}"
+                                                    Grid.Row="1">
+                                        <ContentControl.Resources>
+                                            <DataTemplate DataType="{x:Type vm:TickerViewModel}">
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Bid, StringFormat='Bid: {0:F2}'}" />
+                                                    <TextBlock
+                                                        Text="{Binding BidSize, StringFormat='Bid Size: {0:F2}'}" />
+                                                    <TextBlock Text="{Binding Ask, StringFormat='Ask: {0:F2}'}" />
+                                                    <TextBlock
+                                                        Text="{Binding AskSize, StringFormat='Ask Size: {0:F2}'}" />
+                                                    <TextBlock
+                                                        Text="{Binding DailyChange, StringFormat='Daily Change: {0:F2}'}" />
+                                                    <TextBlock
+                                                        Text="{Binding DailyChangeRelative, StringFormat='Daily Change Relative: {0:P2}'}" />
+                                                    <TextBlock
+                                                        Text="{Binding LastPrice, StringFormat='Last Price: {0:F2}'}" />
+                                                    <TextBlock Text="{Binding Volume, StringFormat='Volume: {0:F2}'}" />
+                                                    <TextBlock Text="{Binding High, StringFormat='High: {0:F2}'}" />
+                                                    <TextBlock Text="{Binding Low, StringFormat='Low: {0:F2}'}" />
+                                                    <TextBlock Text="{Binding FRR, StringFormat='FRR: {0:F2}'}" />
+                                                    <TextBlock
+                                                        Text="{Binding BidPeriod, StringFormat='Bid Period: {0}'}" />
+                                                    <TextBlock
+                                                        Text="{Binding AskPeriod, StringFormat='Ask Period: {0}'}" />
+                                                    <TextBlock
+                                                        Text="{Binding FRRAmountAvailable, StringFormat='FRR Amount Available: {0:F2}'}" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ContentControl.Resources>
+                                    </ContentControl>
+                                </Grid>
+                            </TabItem>
+
                         </TabControl>
                     </DataTemplate>
                 </TabItem.ContentTemplate>
