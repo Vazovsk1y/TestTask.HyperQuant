@@ -28,10 +28,11 @@ internal class BitfinexConnector : ITestConnector
     };
     
     private const string TradesWsChannelName = "trades";
+    private const string CandlesWsChannelName = "candles";
     
     private readonly ReaderWriterLockWrapper _lock = new();
-    private readonly Dictionary<WebsocketChannelKey, int> _pairToChannelInfo = [];
-    private readonly HashSet<WebsocketChannelKey> _subscriptionRequests = [];
+    private readonly Dictionary<WebsocketChannelKey, int> _connections = [];
+    private readonly HashSet<WebsocketChannelKey> _connectionRequests = [];
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly WebsocketClient _wsClient;
 
@@ -93,32 +94,45 @@ internal class BitfinexConnector : ITestConnector
             queryParamsCollection["limit"] = count.Value.ToString(CultureInfo.InvariantCulture);
         }
 
-        if (!PeriodInSecToTimeFrame.TryGetValue(periodInSec, out var timeFrame))
-        {
-            // TODO: Think about throwing exception.
-            timeFrame = PeriodInSecToTimeFrame.First().Value;
-        }
-        
+        var timeFrame = PeriodInSecToTimeFrame[periodInSec];
         using var response = await client.GetAsync($"candles/trade:{timeFrame}:{pair}/hist?{queryParamsCollection}");
         
         response.EnsureSuccessStatusCode();
         
-        var content = await response.Content.ReadFromJsonAsync<IEnumerable<decimal[]>>();
-        return content!.Select(e => new Candle
-        {
-            Pair = pair,
-            OpenPrice = e[1],
-            HighPrice = e[3],
-            LowPrice = e[4],
-            ClosePrice = e[2],
-            TotalVolume = e[5],
-            OpenTime = DateTimeOffset.FromUnixTimeMilliseconds((long)e[0]),
-        })
-        .ToList();
+        var content = await response.Content.ReadFromJsonAsync<IEnumerable<JsonElement>>();
+        return content!.Select(e => MapToCandle(e, pair)).ToList();
     }
     
-    // TODO: How to use maxCount?
+    // TODO: How to use 'maxCount'?
     public async Task SubscribeTrades(string pair, int maxCount = 100)
+    {
+        var key = new WebsocketChannelKey(pair, TradesWsChannelName);
+        var msg = $"{{\"event\":\"subscribe\", \"channel\":\"{key.ChannelName}\", \"symbol\":\"{key.Pair}\"}}";
+
+        await SubscribeInternal(key, msg);
+    }
+
+    // TODO: How to use 'from', 'to', 'count'?
+    public async Task SubscribeCandles(string pair, int periodInSec, DateTimeOffset? from = null, DateTimeOffset? to = null, long? count = 0)
+    {
+        var key = new WebsocketChannelKey(pair, CandlesWsChannelName);
+        var timeFrame = PeriodInSecToTimeFrame[periodInSec];
+        var msg = $"{{\"event\":\"subscribe\", \"channel\":\"{key.ChannelName}\", \"key\":\"trade:{timeFrame}:{key.Pair}\"}}";
+
+        await SubscribeInternal(key, msg);
+    }
+
+    public void UnsubscribeCandles(string pair)
+    {
+        UnsubscribeInternal(pair, CandlesWsChannelName);
+    }
+    
+    public void UnsubscribeTrades(string pair)
+    {
+        UnsubscribeInternal(pair, TradesWsChannelName);
+    }
+    
+    private async Task SubscribeInternal(WebsocketChannelKey key, string message)
     {
         if (!_wsClient.IsStarted)
         {
@@ -126,22 +140,19 @@ internal class BitfinexConnector : ITestConnector
         }
 
         using var lockScope = _lock.EnterWriteLock();
-        var key = new WebsocketChannelKey(pair, TradesWsChannelName);
-        if (_pairToChannelInfo.ContainsKey(key) ||
-            !_subscriptionRequests.Add(key))
+        if (_connections.ContainsKey(key) || !_connectionRequests.Add(key))
         {
             return;
         }
-        
-        var msg = $"{{\"event\":\"subscribe\", \"channel\":\"{key.ChannelName}\", \"symbol\":\"{key.Pair}\"}}";
-        _wsClient.Send(msg);
+
+        _wsClient.Send(message);
     }
 
-    public void UnsubscribeTrades(string pair)
+    private void UnsubscribeInternal(string pair, string channelName)
     {
         using var lockScope = _lock.EnterReadLock();
 
-        if (!_pairToChannelInfo.TryGetValue(new WebsocketChannelKey(pair, TradesWsChannelName), out var channelId))
+        if (!_connections.TryGetValue(new WebsocketChannelKey(pair, channelName), out var channelId))
         {
             return;
         }
@@ -149,17 +160,7 @@ internal class BitfinexConnector : ITestConnector
         var msg = $"{{\"event\":\"unsubscribe\", \"chanId\":\"{channelId}\"}}";
         _wsClient.Send(msg);
         
-        // Think about introducing blocking call based on 'ManualResetEvent'
-    }
-
-    public void SubscribeCandles(string pair, int periodInSec, DateTimeOffset? from = null, DateTimeOffset? to = null, long? count = 0)
-    {
-        throw new NotImplementedException();
-    }
-
-    public void UnsubscribeCandles(string pair)
-    {
-        throw new NotImplementedException();
+        // TODO: Think about introducing blocking call based on 'ManualResetEvent'
     }
     
     private void OnWsMessageReceived(ResponseMessage responseMessage)
@@ -205,7 +206,7 @@ internal class BitfinexConnector : ITestConnector
 
         using var lockScope = _lock.EnterReadLock();
         var channelId = jsonElement.Value[0].GetInt32();
-        var item = _pairToChannelInfo.FirstOrDefault(e => e.Value == channelId);
+        var item = _connections.FirstOrDefault(e => e.Value == channelId);
         if (item.Key is null)
         {
             return;
@@ -216,6 +217,42 @@ internal class BitfinexConnector : ITestConnector
             case TradesWsChannelName:
             {
                 HandleTradesMessage(jsonElement.Value, item.Key.Pair);
+                return;
+            }
+            case CandlesWsChannelName:
+            {
+                HandleCandlesMessage(jsonElement.Value, item.Key.Pair);
+                return;
+            }
+        }
+    }
+
+    private void HandleCandlesMessage(JsonElement jsonElement, string pair)
+    {
+        var secondElement = jsonElement[1];
+        switch (secondElement.ValueKind)
+        {
+            case JsonValueKind.Array:
+            {
+                var arrayLength = secondElement.GetArrayLength();
+                
+                // Candle update message
+                const int candleArrayLength = 6;
+                if (arrayLength == candleArrayLength)
+                {
+                    CandleSeriesProcessing?.Invoke(MapToCandle(secondElement, pair));
+                    return;
+                }
+                
+                // Snapshot
+                foreach (var candle in secondElement
+                             .EnumerateArray()
+                             .Select(e => MapToCandle(e, pair))
+                             .OrderBy(e => e.OpenTime))
+                {
+                    CandleSeriesProcessing?.Invoke(candle);
+                }
+                
                 return;
             }
         }
@@ -266,6 +303,20 @@ internal class BitfinexConnector : ITestConnector
         
         return trade;
     }
+
+    private static Candle MapToCandle(JsonElement tradeArray, string pair)
+    {
+        return new Candle
+        {
+            Pair = pair,
+            OpenTime = DateTimeOffset.FromUnixTimeMilliseconds(tradeArray[0].GetInt64()),
+            OpenPrice = tradeArray[1].GetDecimal(),
+            ClosePrice = tradeArray[2].GetDecimal(),
+            HighPrice = tradeArray[3].GetDecimal(),
+            LowPrice = tradeArray[4].GetDecimal(),
+            TotalVolume = tradeArray[5].GetDecimal(),
+        };
+    }
     
     private static string GetTradeSide(decimal amount)
     {
@@ -288,32 +339,35 @@ internal class BitfinexConnector : ITestConnector
     private void HandleSubscribedMessage(JsonElement jsonElement)
     {
         var chanId = jsonElement.GetProperty("chanId").GetInt32();
-        var symbol = jsonElement.GetProperty("symbol").GetString()!;
         var channelName = jsonElement.GetProperty("channel").GetString()!;
+    
+        var pair = jsonElement.TryGetProperty("key", out var candlesKey)
+            ? candlesKey.GetString()!.Split(':')[2]
+            : jsonElement.GetProperty("symbol").GetString()!;
 
         using var lockScope = _lock.EnterWriteLock();
-        var key = new WebsocketChannelKey(symbol, channelName);
-        _pairToChannelInfo[key] = chanId;
-        _subscriptionRequests.Remove(key);
+        var key = new WebsocketChannelKey(pair, channelName);
+        _connections[key] = chanId;
+        _connectionRequests.Remove(key);
     }
 
     private void HandleUnsubscribedMessage(JsonElement jsonElement)
     {
         if (jsonElement.GetProperty("status").GetString() != "OK")
         {
-            // TODO: Handle it the right way.
+            // TODO: Handle it the right way. For now I just ignore it. 
         }
         
         var chanId = jsonElement.GetProperty("chanId").GetInt32();
 
         using var lockScope = _lock.EnterWriteLock();
-        var item = _pairToChannelInfo.FirstOrDefault(e => e.Value == chanId);
+        var item = _connections.FirstOrDefault(e => e.Value == chanId);
         if (item.Key is null)
         {
             return;
         }
         
-        _pairToChannelInfo.Remove(item.Key);
-        _subscriptionRequests.Remove(item.Key);
+        _connections.Remove(item.Key);
+        _connectionRequests.Remove(item.Key);
     }
 }

@@ -20,9 +20,11 @@ public interface ITestConnector
     void UnsubscribeTrades(string pair);
 
     event Action<Candle> CandleSeriesProcessing;
-    void SubscribeCandles(string pair, int periodInSec, DateTimeOffset? from = null, DateTimeOffset? to = null, long? count = 0);
+    
+    // Moved from void -> Task to provide async API.
+    Task SubscribeCandles(string pair, int periodInSec, DateTimeOffset? from = null, DateTimeOffset? to = null, long? count = 0);
+    
     void UnsubscribeCandles(string pair);
 
     #endregion
-
 }

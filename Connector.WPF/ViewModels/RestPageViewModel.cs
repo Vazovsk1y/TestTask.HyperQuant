@@ -11,8 +11,32 @@ namespace Connector.WPF.ViewModels;
 
 public partial class RestPageViewModel(ITestConnector connector) : ObservableObject
 {
-    [ObservableProperty] 
-    private PlotModel? _candlesChart;
+    public PlotModel CandlesChart { get; } = new()
+    {
+        Title = "Candles Chart",
+        Axes =
+        {
+            new DateTimeAxis
+            {
+                Position = AxisPosition.Bottom,
+                StringFormat = "dd.MM.yyyy HH:mm",
+                MajorGridlineStyle = LineStyle.Solid,
+                MinorGridlineStyle = LineStyle.Dot,
+                IntervalType = DateTimeIntervalType.Auto,
+                Title = "Time",
+            },
+        },
+        Series =
+        {
+            new CandleStickSeries
+            {
+                Color = OxyColors.Black,
+                IncreasingColor = OxyColors.Green,
+                DecreasingColor = OxyColors.Red,
+                TrackerFormatString = "{0}\nDateTime: {2:dd.MM.yyyy HH:mm}\nHigh: {3:0.###}\nLow: {4:0.###}\nOpen: {5:0.###}\nClose: {6:0.###}",
+            },
+        }
+    };
     
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(GetTradesCommand))]
@@ -93,43 +117,22 @@ public partial class RestPageViewModel(ITestConnector connector) : ObservableObj
             var to = CandlesFrom.ToUniversalTime();
 
             var result = await connector.GetCandleSeriesAsync(CandlesPair!, CandlesTimeFrame.Value, from, to, CandlesLimit);
-
-            var candleStickSeries = new CandleStickSeries()
-            {
-                Color = OxyColors.Black,
-                IncreasingColor = OxyColors.Green,
-                DecreasingColor = OxyColors.Red,
-                Title = result.FirstOrDefault()?.Pair,
-                TrackerFormatString = "{0}\nDateTime: {2:dd.MM.yyyy HH:mm}\nHigh: {3:0.###}\nLow: {4:0.###}\nOpen: {5:0.###}\nClose: {6:0.###}",
-            };
-
-            candleStickSeries.Items.AddRange(
-                result
-                    .OrderBy(e => e.OpenTime)
-                    .Select(candle => new HighLowItem(
-                        DateTimeAxis.ToDouble(candle.OpenTime.ToLocalTime().DateTime),
-                        (double)candle.HighPrice,
-                        (double)candle.LowPrice,
-                        (double)candle.OpenPrice,
-                        (double)candle.ClosePrice
-                    )));
             
-            var dateTimeAxis = new DateTimeAxis
-            {
-                Position = AxisPosition.Bottom,
-                StringFormat = "dd.MM.yyyy HH:mm",
-                MajorGridlineStyle = LineStyle.Solid,
-                MinorGridlineStyle = LineStyle.Dot,
-                IntervalType = DateTimeIntervalType.Auto,
-                Title = "Time",
-            };
+            var series = CandlesChart.Series.OfType<CandleStickSeries>().First();
+            series.Items.Clear();
+            
+            series.Items.AddRange(result
+                .OrderBy(e => e.OpenTime)
+                .Select(candle => new HighLowItem(
+                    DateTimeAxis.ToDouble(candle.OpenTime.ToLocalTime().DateTime),
+                    (double)candle.HighPrice,
+                    (double)candle.LowPrice,
+                    (double)candle.OpenPrice,
+                    (double)candle.ClosePrice
+                )));
 
-            CandlesChart = new PlotModel
-            {
-                Title = "Candles Chart",
-                Series = { candleStickSeries },
-                Axes = { dateTimeAxis }
-            };
+            CandlesChart.ResetAllAxes();
+            CandlesChart.InvalidatePlot(true);
         }
         catch (HttpRequestException e)
         {
