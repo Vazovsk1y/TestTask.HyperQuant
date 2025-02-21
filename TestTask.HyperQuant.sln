@@ -2,6 +2,8 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Connector", "Connector\Connector.csproj", "{8ECBAB74-2B1F-4B4D-8FC6-3F39BCDC0D5E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Connector.WPF", "Connector.WPF\Connector.WPF.csproj", "{DF32E992-74F5-4CC9-9A36-DE07D22EBD02}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -12,5 +14,9 @@ Global
 		{8ECBAB74-2B1F-4B4D-8FC6-3F39BCDC0D5E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8ECBAB74-2B1F-4B4D-8FC6-3F39BCDC0D5E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8ECBAB74-2B1F-4B4D-8FC6-3F39BCDC0D5E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DF32E992-74F5-4CC9-9A36-DE07D22EBD02}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DF32E992-74F5-4CC9-9A36-DE07D22EBD02}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DF32E992-74F5-4CC9-9A36-DE07D22EBD02}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DF32E992-74F5-4CC9-9A36-DE07D22EBD02}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
