@@ -13,8 +13,6 @@ public class Ticker
     public double? Volume { get; set; }
     public double? High { get; set; }
     public double? Low { get; set; }
-
-    // Поля для funding (финансирования)
     public double? FRR { get; set; }
     public int? BidPeriod { get; set; }
     public int? AskPeriod { get; set; }

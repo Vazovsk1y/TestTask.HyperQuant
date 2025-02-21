@@ -10,7 +10,7 @@ internal static class Program
 
     private static Mutex? _mutex;
 
-    private const string AppId = "2ded2b5e-6d07-421a-8e5d-5b71a1225f17";
+    private const string ProgramId = "2ded2b5e-6d07-421a-8e5d-5b71a1225f17";
 
     [STAThread]
     public static void Main(string[] args)
@@ -20,7 +20,7 @@ internal static class Program
         IsInDebug = true;
 #endif
         
-        _mutex = new Mutex(true, AppId, out var createdNew);
+        _mutex = new Mutex(true, ProgramId, out var createdNew);
         if (!createdNew)
         {
             MessageBox.Show("App is already running.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);

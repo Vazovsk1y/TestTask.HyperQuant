@@ -7,7 +7,7 @@ namespace Connector.WPF;
 
 public partial class App : Application
 {
-    public static IServiceProvider Services { get; }
+    private static IServiceProvider Services { get; }
     
     static App()
     {
