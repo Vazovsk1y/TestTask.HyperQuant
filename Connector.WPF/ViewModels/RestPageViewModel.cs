@@ -1,4 +1,5 @@
-﻿using System.Net.Http;
+﻿using System.Data;
+using System.Net.Http;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -38,12 +39,32 @@ public partial class RestPageViewModel(ITestConnector connector) : ObservableObj
         }
     };
 
+    private static readonly Dictionary<string, decimal> FromCurrencies = new()
+    {
+        { "BTC", 1 },
+        { "XRP", 15000 },
+        { "XMR", 50 },
+        { "DASH", 30 },
+    };
+
+    private static readonly List<string> ToCurrencies =
+    [
+        "USDT",
+        "XMR",
+        "XRP",
+        "DASH",
+        "BTC"
+    ];
+
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(GetTickerCommand))]
     private string? _tickerPair;
     
     [ObservableProperty]
     private TickerViewModel? _tickerViewModel;
+
+    [ObservableProperty]
+    private DataTable _calculatedBalances = new();
     
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(GetTradesCommand))]
@@ -165,50 +186,53 @@ public partial class RestPageViewModel(ITestConnector connector) : ObservableObj
     
     private bool CanGetCandleSeries() => !string.IsNullOrWhiteSpace(CandlesPair) &&
                                          CandlesLimit >= 1;
-}
 
-public record TickerViewModel(
-    double? Bid,
-    double? BidSize,
-    double? Ask,
-    double? AskSize,
-    double? DailyChange,
-    double? DailyChangeRelative,
-    double? LastPrice,
-    double? Volume,
-    double? High,
-    double? Low,
-    double? FRR = null,
-    int? BidPeriod = null,
-    int? AskPeriod = null,
-    double? FRRAmountAvailable = null)
-{
-    public static TickerViewModel MapFromModel(Ticker model)
+    [RelayCommand]
+    private async Task CalculateBalances()
     {
-        return new TickerViewModel(
-            model.Bid,
-            model.BidSize,
-            model.Ask,
-            model.AskSize,
-            model.DailyChange,
-            model.DailyChangeRelative,
-            model.LastPrice,
-            model.Volume,
-            model.High,
-            model.Low,
-            model.FRR,
-            model.BidPeriod,
-            model.AskPeriod,
-            model.FRRAmountAvailable
-        );
+        try
+        {
+            var requests = FromCurrencies
+                .SelectMany(_ => ToCurrencies, (pair, to) => (from: pair.Key, to, amount: pair.Value))
+                .Select(async e =>
+                {
+                    var result = await connector.CalculateExchangeRateAsync(e.from, e.to);
+                    return (e.from, e.to, e.amount, rate: result);
+                })
+                .ToList();
+
+            var results = await Task.WhenAll(requests);
+            
+            var table = new DataTable();
+
+            table.Columns.Add("Currency", typeof(string));
+            table.Columns.Add("Amount", typeof(decimal));
+
+            foreach (var currency in ToCurrencies)
+            {
+                table.Columns.Add(currency, typeof(decimal));
+            }
+
+            var groupedResults = results.GroupBy(x => x.from);
+            foreach (var group in groupedResults)
+            {
+                var row = table.NewRow();
+                row["Currency"] = group.Key;
+                row["Amount"] = group.First().amount;
+
+                foreach (var item in group)
+                {
+                    row[item.to] = item.rate.HasValue ? item.amount * item.rate.Value : DBNull.Value;
+                }
+
+                table.Rows.Add(row);
+            }
+
+            CalculatedBalances = table;
+        }
+        catch (HttpRequestException e)
+        {
+            MessageBox.Show(e.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 }
-
-public record TradeViewModel(
-    int Number,
-    string Pair,
-    decimal Amount,
-    decimal Price,
-    string Side,
-    string Time,
-    string Id);

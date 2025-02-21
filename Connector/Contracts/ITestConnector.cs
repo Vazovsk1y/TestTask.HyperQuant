@@ -7,6 +7,7 @@ public interface ITestConnector
     Task<IEnumerable<Trade>> GetNewTradesAsync(string pair, int maxCount);
     Task<IEnumerable<Candle>> GetCandleSeriesAsync(string pair, int periodInSec, DateTimeOffset? from = null, DateTimeOffset? to = null, long? count = null);
     Task<Ticker> GetTickerAsync(string pair);
+    Task<decimal?> CalculateExchangeRateAsync(string fromCurrency, string toCurrency);
 
     #endregion
 

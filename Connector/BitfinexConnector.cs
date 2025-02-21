@@ -68,6 +68,23 @@ internal class BitfinexConnector : ITestConnector
         var content = await response.Content.ReadFromJsonAsync<IEnumerable<JsonElement>>();
         return content!.Select(e => MapToTrade(e, pair)).ToList();
     }
+    
+    public async Task<decimal?> CalculateExchangeRateAsync(string fromCurrency, string toCurrency)
+    {
+        using var client = _httpClientFactory.CreateClient(HttpClientName);
+        var body = new
+        {
+            ccy1 = fromCurrency,
+            ccy2 = toCurrency,
+        };
+        
+        using var response = await client.PostAsync("calc/fx", JsonContent.Create(body));
+        
+        response.EnsureSuccessStatusCode();
+        
+        var content = await response.Content.ReadFromJsonAsync<decimal?[]>();
+        return content![0];
+    }
 
     public async Task<IEnumerable<Candle>> GetCandleSeriesAsync(
         string pair, 

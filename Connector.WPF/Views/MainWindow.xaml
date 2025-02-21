@@ -149,6 +149,23 @@
                                     </ContentControl>
                                 </Grid>
                             </TabItem>
+                            
+                            <TabItem Header="Balances">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Content="Calculate balances"
+                                                Command="{Binding CalculateBalancesCommand}"/>
+                                    </StackPanel>
+                                    
+                                    <DataGrid Grid.Row="1"
+                                              ItemsSource="{Binding CalculatedBalances.DefaultView}"/>
+                                </Grid>
+                            </TabItem>
 
                         </TabControl>
                     </DataTemplate>
